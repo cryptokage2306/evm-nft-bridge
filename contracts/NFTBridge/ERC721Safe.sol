@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./ERC721MinterBurnerPauser.sol";
 
+
 /**
     @title Manages deposited ERC721s.
     @author ChainSafe Systems.
@@ -20,7 +21,7 @@ contract ERC721Safe {
         @param recipient Address to transfer token to.
         @param tokenID ID of token to transfer.
      */
-    function lockERC721(address tokenAddress, address owner, address recipient, uint tokenID) internal {
+    function lockERC721(address tokenAddress, address owner, address recipient, uint256 tokenID) internal {
         IERC721 erc721 = IERC721(tokenAddress);
         erc721.transferFrom(owner, recipient, tokenID);
 
@@ -34,6 +35,7 @@ contract ERC721Safe {
         @param tokenID ID of token to transfer.
      */
     function releaseERC721(address tokenAddress, address owner, address recipient, uint256 tokenID) internal {
+     
         IERC721 erc721 = IERC721(tokenAddress);
         erc721.transferFrom(owner, recipient, tokenID);
     }
