@@ -6,12 +6,16 @@ import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "../libraries/external/BytesLib.sol";
 
 import "./ERC721Safe.sol";
+import "./NFTBridgeStructs.sol";
+import "./NFTBridgeGetters.sol";
+import "./NFTBridgeGovernance.sol";
 
-contract Bridge is AccessControlEnumerable, IERC721Receiver, ERC721Safe {
+contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver, ERC721Safe {
     using ERC165Checker for address;
-
+    using BytesLib for bytes;
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
     bytes4 private constant _INTERFACE_ERC721_METADATA = 0x5b5e139f;
@@ -54,7 +58,7 @@ contract Bridge is AccessControlEnumerable, IERC721Receiver, ERC721Safe {
         uint8 destinationDomainID,
         bytes32 resourceID,
         bytes calldata data
-    ) external {
+    ) public payable returns (uint64 sequence){
         nonces[destinationDomainID] += 1;
         uint256 tokenID;
         bytes memory metaData;
@@ -74,22 +78,91 @@ contract Bridge is AccessControlEnumerable, IERC721Receiver, ERC721Safe {
         } else {
             lockERC721(tokenAddress, msg.sender, address(this), tokenID);
         }
-        emit Deposit(
-            destinationDomainID,
-            resourceID,
-            nonces[destinationDomainID],
-            data,
-            msg.sender,
-            metaData
+
+        sequence = logTransfer(NFTBridgeStructs.Transfer({
+                resourceID : resourceID,
+                data   : data,
+                destinationDomainID         : destinationDomainID, 
+                tokenID      : tokenID,
+                uri          : metaData,
+                user         : msg.sender
+            }), msg.value, nonces[destinationDomainID]); 
+    }
+
+    function logTransfer(NFTBridgeStructs.Transfer memory transfer, uint256 callValue, uint64 nonce) internal returns (uint64 sequence) {
+        bytes memory encoded = encodeTransfer(transfer);
+
+        sequence = wormhole().publishMessage{
+            value : callValue
+        }(nonce, encoded, 15); 
+    }
+
+    function encodeTransfer(NFTBridgeStructs.Transfer memory transfer) public pure returns (bytes memory encoded) {
+        // There is a global limit on 200 bytes of tokenURI in Wormhole due to Solana
+        require(bytes(transfer.uri).length <= 200, "tokenURI must not exceed 200 bytes");
+
+        encoded = abi.encodePacked(
+            uint8(1),
+            transfer.resourceID,
+            transfer.data,
+            transfer.destinationDomainID,
+            transfer.tokenID,
+            uint8(bytes(transfer.uri).length),
+            transfer.user
         );
     }
 
+
+    function parseTransfer(bytes memory encoded) public pure returns (NFTBridgeStructs.Transfer memory transfer) {
+        uint index = 0;
+
+        uint8 payloadID = encoded.toUint8(index);
+        index += 1;
+
+        require(payloadID == 1, "invalid Transfer");
+
+        transfer.resourceID = encoded.toBytes32(index);
+        index += 32;
+
+        // transfer.data = encoded.toUint128(index);
+        index += 2;
+
+        transfer.destinationDomainID = encoded.toUint16(index);
+        index += 32;
+
+        transfer.tokenID = encoded.toUint256(index);
+        index += 32;
+        
+        // Ignore length due to malformatted payload
+        index += 1;
+        transfer.uri = encoded.slice(index, encoded.length - index - 34);
+
+        // From here we read backwards due malformatted package
+        index = encoded.length;
+
+        index -= 32;
+        transfer.user = encoded.toAddress(index);
+
+        //require(encoded.length == index, "invalid Transfer");
+    }
+
     function executeProposal(
-        uint8 domainID,
-        uint64 depositNonce,
-        bytes32 resourceID,
-        bytes calldata data
+        bytes memory encodedVm
+        // uint8 domainID,
+        // uint64 depositNonce,
+        // bytes32 resourceID,
+        // bytes calldata data
     ) external onlyRole(RELAYER_ROLE) {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
+
+        require(valid, reason);
+        require(verifyBridgeVM(vm), "invalid emitter");
+
+        NFTBridgeStructs.Transfer memory transfer = parseTransfer(vm.payload);
+
+        require(!isTransferCompleted(vm.hash), "transfer already completed");
+        setTransferCompleted(vm.hash);
+
         uint72 nonceAndID = (uint72(depositNonce) << 8) | uint72(domainID);
 
         uint256 tokenID;
@@ -131,6 +204,14 @@ contract Bridge is AccessControlEnumerable, IERC721Receiver, ERC721Safe {
                 tokenID
             );
         }
+    }
+
+    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
+        if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
+            return true;
+        }
+
+        return false;
     }
 
     function createResourceIdForToken(
