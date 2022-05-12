@@ -37,12 +37,13 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
     event ResourceId(bytes32 _resourceId, address token);
 
-    constructor(address _implContract) {
+    constructor(address _implContract,address _wormhole) {
         implContract = _implContract;
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
         _setRoleAdmin(ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(RELAYER_ROLE, DEFAULT_ADMIN_ROLE);
+        setWormhole( _wormhole);
     }
 
     function onERC721Received(
@@ -148,46 +149,21 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
     function executeProposal(
         bytes memory encodedVm
-        // uint8 domainID,
-        // uint64 depositNonce,
-        // bytes32 resourceID,
-        // bytes calldata data
     ) external onlyRole(RELAYER_ROLE) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
-        require(verifyBridgeVM(vm), "invalid emitter");
 
         NFTBridgeStructs.Transfer memory transfer = parseTransfer(vm.payload);
 
         require(!isTransferCompleted(vm.hash), "transfer already completed");
         setTransferCompleted(vm.hash);
 
-        uint72 nonceAndID = (uint72(depositNonce) << 8) | uint72(domainID);
+        bytes32 resourceID = transfer.resourceID;
+        uint256 tokenID = transfer.tokenID;
+        address recipientAddress = transfer.user;
+        bytes memory metaData = transfer.uri;
 
-        uint256 tokenID;
-        uint256 lenDestinationRecipientAddress;
-        bytes memory destinationRecipientAddress;
-        uint256 offsetMetaData;
-        uint256 lenMetaData;
-        bytes memory metaData;
-
-        (tokenID, lenDestinationRecipientAddress) = abi.decode(
-            data,
-            (uint256, uint256)
-        );
-        offsetMetaData = 64 + lenDestinationRecipientAddress;
-        destinationRecipientAddress = bytes(data[64:offsetMetaData]);
-        lenMetaData = abi.decode(data[offsetMetaData:], (uint256));
-        metaData = bytes(
-            data[offsetMetaData + 32:offsetMetaData + 32 + lenMetaData]
-        );
-
-        bytes20 recipientAddress;
-
-        assembly {
-            recipientAddress := mload(add(destinationRecipientAddress, 0x20))
-        }
         address tokenAddress = _resourceIDToTokenContractAddress[resourceID];
         if (_burnList[tokenAddress]) {
             mintERC721(
