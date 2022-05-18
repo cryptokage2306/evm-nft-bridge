@@ -36,7 +36,7 @@ async function main() {
         governanceChainId,
         governanceContract
     ).encodeABI();
-    console.log("implementation deployed to:", initData);
+    console.log("Init Data:", initData);
 
 
   const Wormhole = await ethers.getContractFactory("Wormhole");
@@ -44,22 +44,10 @@ async function main() {
 
   await wormhole.deployed();
   console.log("wormhole deployed to:", wormhole.address);
-    // deploy implementation
-    // const b =await deployer.deploy(Implementation);
-    // console.log(b.address, b);
-    // // encode initialisation data
-    // const setup = new web3.eth.Contract(Setup.abi, Setup.address);
-    // const initData = setup.methods.setup(
-    //     Implementation.address,
-    //     initialSigners,
-    //     chainId,
-    //     governanceChainId,
-    //     governanceContract
-    // ).encodeABI();
-
-    // // deploy proxy
-    // const abc = await deployer.deploy(Wormhole, Setup.address, initData);
-    // console.log(abc.address, abc);
+  // setup deployed to: 0xB3Ff35B137dd9A79Bb519f0EA03ce2d416Db2d3f
+  // implementation deployed to: 0xa6b948c043834a5aA2b5E31295330131A4af0a1A
+  // Init Data: 0x34a5fcd4000000000000000000000000a6b948c043834a5aa2b5e31295330131a4af0a1a00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000
+  // wormhole deployed to: 0x15A7106be76Aab3e1A191E8d1fF98955e56df5df
   }
   main().catch((error) => {
     console.error(error);

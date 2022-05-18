@@ -149,7 +149,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
     function executeProposal(
         bytes memory encodedVm
-    ) external onlyRole(RELAYER_ROLE) {
+    ) external {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);

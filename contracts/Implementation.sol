@@ -9,14 +9,14 @@ import "./Governance.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 contract Implementation is Governance {
-    event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);
+    event LogMessagePublished(address indexed sender, uint64 sequence, uint64 nonce, bytes payload, uint8 consistencyLevel);
 
     // Publish a message to be attested by the Wormhole network
     function publishMessage(
-        uint32 nonce,
+        uint64 nonce,
         bytes memory payload,
         uint8 consistencyLevel
-    ) public payable returns (uint64 sequence) {
+    ) external payable returns (uint64 sequence) {
         // check fee
         require(msg.value == messageFee(), "invalid fee");
 
