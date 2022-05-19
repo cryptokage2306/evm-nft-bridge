@@ -82,7 +82,6 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
         sequence = logTransfer(NFTBridgeStructs.Transfer({
                 resourceID : resourceID,
-                data   : data,
                 destinationDomainID         : destinationDomainID, 
                 tokenID      : tokenID,
                 uri          : metaData,
@@ -105,16 +104,16 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         encoded = abi.encodePacked(
             uint8(1),
             transfer.resourceID,
-            transfer.data,
             transfer.destinationDomainID,
             transfer.tokenID,
             uint8(bytes(transfer.uri).length),
+            transfer.uri,
             transfer.user
         );
     }
 
 
-    function parseTransfer(bytes memory encoded) public pure returns (NFTBridgeStructs.Transfer memory transfer) {
+    function parseTransfer(bytes memory encoded) public returns (NFTBridgeStructs.Transfer memory transfer) {
         uint index = 0;
 
         uint8 payloadID = encoded.toUint8(index);
@@ -126,24 +125,23 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         index += 32;
 
         // transfer.data = encoded.toUint128(index);
-        index += 2;
 
         transfer.destinationDomainID = encoded.toUint16(index);
-        index += 32;
+        index += 2;
 
         transfer.tokenID = encoded.toUint256(index);
         index += 32;
         
         // Ignore length due to malformatted payload
         index += 1;
-        transfer.uri = encoded.slice(index, encoded.length - index - 34);
+       
+        transfer.uri = encoded.slice(index, encoded.length - index - 20);
 
         // From here we read backwards due malformatted package
         index = encoded.length;
 
-        index -= 32;
+        index -= 20;
         transfer.user = encoded.toAddress(index);
-
         //require(encoded.length == index, "invalid Transfer");
     }
 

@@ -6,7 +6,6 @@ pragma solidity ^0.8.0;
 contract NFTBridgeStructs {
     struct Transfer {
         bytes32 resourceID;
-        bytes data;
         uint16 destinationDomainID;
         uint256 tokenID;
         bytes uri;
