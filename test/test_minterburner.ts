@@ -1,7 +1,7 @@
 import { assert, expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 const TruffleAssert = require("truffle-assertions");
-import { assertIsRejected } from "./aux";
+import { assertIsRejected } from "./helper";
 
 describe("Tests for ERC721MinterBurnerPauser", function () {
   const initialize = async () => {
