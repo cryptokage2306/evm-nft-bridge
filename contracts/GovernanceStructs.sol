@@ -28,7 +28,6 @@ contract GovernanceStructs {
         uint16 chain;
 
         Structs.GuardianSet newGuardianSet;
-        uint32 newGuardianSetIndex;
     }
 
     struct SetMessageFee {
@@ -81,9 +80,6 @@ contract GovernanceStructs {
 
         gsu.chain = encodedUpgrade.toUint16(index);
         index += 2;
-
-        gsu.newGuardianSetIndex = encodedUpgrade.toUint32(index);
-        index += 4;
 
         uint8 guardianLength = encodedUpgrade.toUint8(index);
         index += 1;

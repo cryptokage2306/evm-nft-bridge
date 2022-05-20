@@ -113,7 +113,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
     }
 
 
-    function parseTransfer(bytes memory encoded) public returns (NFTBridgeStructs.Transfer memory transfer) {
+    function parseTransfer(bytes memory encoded) public pure returns (NFTBridgeStructs.Transfer memory transfer) {
         uint index = 0;
 
         uint8 payloadID = encoded.toUint8(index);
@@ -123,8 +123,6 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
         transfer.resourceID = encoded.toBytes32(index);
         index += 32;
-
-        // transfer.data = encoded.toUint128(index);
 
         transfer.destinationDomainID = encoded.toUint16(index);
         index += 2;
@@ -142,7 +140,6 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
         index -= 20;
         transfer.user = encoded.toAddress(index);
-        //require(encoded.length == index, "invalid Transfer");
     }
 
     function executeProposal(

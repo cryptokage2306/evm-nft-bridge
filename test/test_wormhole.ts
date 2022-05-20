@@ -16,8 +16,6 @@ const WormholeImplementationFullABI = jsonfile.readFileSync(
   "artifacts/contracts/Implementation.sol/Implementation.json"
 ).abi;
 
-const resourceID =
-  "0x9b05a194b2aafc404907ab4a20261a2e917ea70a5c9f44057f5b5e0ed2b4da5b";
 const initialSigners = [process.env.INIT_SIGNERS];
 const chainId = process.env.INIT_CHAIN_ID;
 const governanceChainId = process.env.INIT_GOV_CHAIN_ID;
@@ -30,7 +28,6 @@ describe("Bridge", function () {
   const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner3PK);
   const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
   let BridgeContract: Bridge;
-  let TestContract: TestERC721;
   let ImplementationContract: Implementation;
 
   const deployMinterBurner = async () => {
@@ -87,148 +84,66 @@ describe("Bridge", function () {
   };
 
   beforeEach(async function () {
-    const [owner] = await ethers.getSigners();
     const { currentImplAddress } = await deployMinterBurner();
     const { wh } = await deployWormhole();
     const Bridge = await ethers.getContractFactory("Bridge");
     const BridgeContract1 = await Bridge.deploy(currentImplAddress, wh);
     BridgeContract = await BridgeContract1.deployed();
-    const TestERC721 = await ethers.getContractFactory("TestERC721");
-    const testERC721 = await TestERC721.deploy();
-    TestContract = await testERC721.deployed();
   });
 
-  it("Tests for createResourceIdForToken", async function () {
-    TruffleAssert.passes(
-      await BridgeContract.createResourceIdForToken(
-        resourceID,
-        "name",
-        "symbol"
-      )
-    );
-  });
-
-  it("Tests for Happy flow _setResourceIdForToken", async function () {
-    const [deployer] = await ethers.getSigners();
-    TruffleAssert.passes(
-      await BridgeContract.setResourceIdForToken(
-        resourceID,
-        deployer.address,
-        true,
-        true
-      )
-    );
-  });
-
-  it("Negative Tests for _setResourceIdForToken", async function () {
-    const [deployer] = await ethers.getSigners();
-    const accs = await ethers.getSigners();
-    TruffleAssert.passes(
-      await BridgeContract.setResourceIdForToken(
-        resourceID,
-        deployer.address,
-        false,
-        true
-      )
-    );
-
-    await assertIsRejected(
-      BridgeContract.setResourceIdForToken(
-        resourceID,
-        deployer.address,
-        false,
-        true
-      ),
-      /already contract registered/,
-      "already contract registered"
-    );
-  });
-
-  it("Tests for _resourceIDToTokenContractAddress", async function () {
-    TruffleAssert.passes(
-      await BridgeContract._resourceIDToTokenContractAddress(resourceID)
-    );
-  });
-
-  it("Should assign relayer role", async function () {
-    const [deployer] = await ethers.getSigners();
-    const relayer = await BridgeContract.RELAYER_ROLE();
-    TruffleAssert.passes(
-      await BridgeContract.grantRole(relayer, deployer.address)
-    );
-    assert.isTrue(await BridgeContract.hasRole(relayer, deployer.address));
-  });
-
-  it("Tests for Deposit ", async function () {
-    const [owner] = await ethers.getSigners();
-    const relayer = await BridgeContract.RELAYER_ROLE();
-    await BridgeContract.grantRole(relayer, owner.address);
-    await BridgeContract.setResourceIdForToken(
-      resourceID,
-      TestContract.address,
-      true,
-      false
-    );
-    await TestContract.mint(owner.address, 1);
-
-    expect(await TestContract.ownerOf(1)).to.equal(owner.address);
-    await TestContract.setApprovalForAll(BridgeContract.address, true);
-    const depositData = createERCDepositData(1, 20, owner.address);
-    const bcv = await BridgeContract.deposit(123, resourceID, depositData);
-    expect(await TestContract.ownerOf(1)).to.equal(BridgeContract.address);
-  });
-
-  it("Tests for Execute ", async function () {
-    const [owner] = await ethers.getSigners();
-    const relayer = await BridgeContract.RELAYER_ROLE();
-    await BridgeContract.grantRole(relayer, owner.address);
-    await BridgeContract.setResourceIdForToken(
-      resourceID,
-      TestContract.address,
-      true,
-      false
-    );
-    await TestContract.mint(owner.address, 1);
-
-    expect(await TestContract.ownerOf(1)).to.equal(owner.address);
-    await TestContract.setApprovalForAll(BridgeContract.address, true);
-    const depositData = createERCDepositData(1, 20, owner.address);
-    const bcv = await BridgeContract.deposit(123, resourceID, depositData);
-    expect(await TestContract.ownerOf(1)).to.equal(BridgeContract.address);
+  it("Test for wormhole", async function () {
+    const accounts = await web3.eth.getAccounts();
 
     let wormhole_Address = await BridgeContract.wormhole();
 
-    const wormhole = new web3.eth.Contract(
-      WormholeImplementationFullABI,
-      wormhole_Address
-    );
-    const log = (
-      await wormhole.getPastEvents("LogMessagePublished", {
-        fromBlock: "latest",
-      })
-    )[0].returnValues;
+    const initialized = new web3.eth.Contract(WormholeImplementationFullABI, wormhole_Address);
 
-    let sequence = log.sequence;
-    let nonce = log.nonce;
-    let payload = log.payload;
-    let cl = log.consistencyLevel;
+    let guardians = await initialized.methods.getGuardianSet().call();
+    assert.equal(guardians[0][0], initialSigners[0]);
+
+    let payload = await signAndEncodePayload(
+      "0x00000000000000000000000000000000000000000000000000000000436f7265",
+      2,
+      chainId,
+      2,
+      [testSigner2.address,testSigner1.address]
+    )
 
     let encodedVM = await signAndEncodeVM(
       0,
-      nonce,
-      121,
-      "0x0000000000000000000000000000000000000000",
-      sequence,
-      payload,
+      121211,
+      governanceChainId,
+      governanceContract,
+      0,
+      "0x"+payload,
       [testSigner1PK],
-      cl
+      15
     );
 
-    await BridgeContract.executeProposal("0x" + encodedVM);
-    expect(await TestContract.ownerOf(1)).to.equal(owner.address);
+    let set = await initialized.methods.submitNewGuardianSet("0x" + encodedVM).send({
+      value: 0,
+      from: accounts[0],
+      gasLimit: 1000000
   });
 
-  
+  let guardians2 = await initialized.methods.getGuardianSet().call();
+
+  assert.equal(guardians2[0][0], testSigner2.address);
+  assert.equal(guardians2[0][1], testSigner1.address);
+  });
+  const signAndEncodePayload = async(module: any, action: any,chain: any,length: any,newsigners: any[]) => {
+    const body = [
+      web3.eth.abi.encodeParameter("bytes32", module).substring(2),
+      web3.eth.abi.encodeParameter("uint8", action).substring(2 + (64 - 2)),
+      web3.eth.abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)),
+      web3.eth.abi.encodeParameter("uint8", length).substring(2 + (64 - 2)),
+      web3.eth.abi.encodeParameter("address", newsigners[0]).substring(2 + (64 - 40)),
+      web3.eth.abi.encodeParameter("address", newsigners[1]).substring(2 + (64 - 40)),
+    ].join("")
+
+    return body;
+  }
+
   const signAndEncodeVM = async function (
     timestamp: any,
     nonce: any,

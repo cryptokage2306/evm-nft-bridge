@@ -28,7 +28,7 @@ contract Messages is Getters {
     // VERIFICATION 
     function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
         /// @dev Obtain the current guardianSet for the guardianSetIndex provided
-        Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
+        Structs.GuardianSet memory guardianSet = getGuardianSet();
 
        /**
         * @dev Checks whether the guardianSet has zero keys
@@ -41,10 +41,6 @@ contract Messages is Getters {
             return (false, "invalid guardian set");
         }
 
-        /// @dev Checks if VM guardian set index matches the current index (unless the current set is expired).
-        if(vm.guardianSetIndex != getCurrentGuardianSetIndex() && guardianSet.expirationTime < block.timestamp){
-            return (false, "guardian set has expired");
-        }
 
        /**
         * @dev We're using a fixed point number transformation with 1 decimal to deal with rounding.
@@ -102,8 +98,6 @@ contract Messages is Getters {
         index += 1;
         require(vm.version == 1, "VM version incompatible");
 
-        vm.guardianSetIndex = encodedVM.toUint32(index);
-        index += 4;
 
         // Parse Signatures
         uint256 signersLen = encodedVM.toUint8(index);

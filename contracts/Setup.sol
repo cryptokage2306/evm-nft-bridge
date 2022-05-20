@@ -23,8 +23,7 @@ contract Setup is Setters, ERC1967Upgrade {
             expirationTime : 0
         });
 
-        storeGuardianSet(initialGuardianSet, 0);
-        // initial guardian set index is 0, which is the default value of the storage slot anyways
+        storeGuardianSet(initialGuardianSet);
 
         setChainId(chainId);
 

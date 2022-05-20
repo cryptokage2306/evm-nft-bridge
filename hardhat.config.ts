@@ -30,58 +30,59 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
- */
-// module.exports = {
-//   defaultNetwork: "testnet",
-//   networks: {
-//     testnet: {
-//       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
-//       chainId: 97,
-//       gas: 2100000,
-//       gasPrice: 20000000000,
-//       accounts: [process.env.PRIVATE_KEY]
-//     },
-//   },
-//   solidity: {
-//   version: "0.8.4",
-//   settings: {
-//     optimizer: {
-//       enabled: true
-//     }
-//    }
-//   },
-//   paths: {
-//     sources: "./contracts",
-//     tests: "./test",
-//     cache: "./cache",
-//     artifacts: "./artifacts"
-//   },
-
-// };
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
-
+//  */
 module.exports = {
+  defaultNetwork: "testnet",
   networks: {
     hardhat: {
     },
-    // matic: {
-    //   url: "https://matic-mumbai.chainstacklabs.com",
-    //   accounts: [process.env.PRIVATE_KEY],
-    //   gas: 2100000,
-    //   gasPrice: 8000000000
-    // }
-  },
-  etherscan: {
-    apiKey: process.env.POLYGONSCAN_API_KEY
+    testnet: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      chainId: 97,
+      gas: 2100000,
+      gasPrice: 20000000000,
+      accounts: [process.env.PRIVATE_KEY]
+    },
   },
   solidity: {
-    version: "0.8.4",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200
-      }
+  version: "0.8.4",
+  settings: {
+    optimizer: {
+      enabled: true
     }
+   }
   },
-}
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts"
+  },
+
+};
+// You need to export an object to set up your config
+// Go to https://hardhat.org/config/ to learn more
+
+// module.exports = {
+//   defaultNetwork: "matic",
+//   networks: {
+//     hardhat: {
+//     },
+//     matic: {
+//       url: "https://matic-mumbai.chainstacklabs.com",
+//       accounts: [process.env.PRIVATE_KEY]
+//     }
+//   },
+//   etherscan: {
+//     apiKey: process.env.POLYGONSCAN_API_KEY
+//   },
+//   solidity: {
+//     version: "0.8.4",
+//     settings: {
+//       optimizer: {
+//         enabled: true,
+//         runs: 200
+//       }
+//     }
+//   },
+// }

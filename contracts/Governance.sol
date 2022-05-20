@@ -61,13 +61,11 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         require(upgrade.chain == chainId() || upgrade.chain == 0, "invalid Chain");
 
         require(upgrade.newGuardianSet.keys.length > 0, "new guardian set is empty");
-        require(upgrade.newGuardianSetIndex == getCurrentGuardianSetIndex() + 1, "index must increase in steps of 1");
 
         setGovernanceActionConsumed(vm.hash);
 
-        expireGuardianSet(getCurrentGuardianSetIndex());
-        storeGuardianSet(upgrade.newGuardianSet, upgrade.newGuardianSetIndex);
-        updateGuardianSetIndex(upgrade.newGuardianSetIndex);
+        expireGuardianSet();
+        storeGuardianSet(upgrade.newGuardianSet);
     }
 
     function submitTransferFees(bytes memory _vm) public {
@@ -108,10 +106,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
             return (false, reason);
         }
 
-        // only current guardianset can sign governance packets
-        if (vm.guardianSetIndex != getCurrentGuardianSetIndex()) {
-            return (false, "not signed by current guardian set");
-        }
 
         // verify source
         if (uint16(vm.emitterChainId) != governanceChainId()) {

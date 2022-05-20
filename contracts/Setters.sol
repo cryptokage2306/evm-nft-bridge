@@ -6,16 +6,14 @@ pragma solidity ^0.8.0;
 import "./State.sol";
 
 contract Setters is State {
-    function updateGuardianSetIndex(uint32 newIndex) internal {
-        _state.guardianSetIndex = newIndex;
+
+
+    function expireGuardianSet() internal {
+        _state.guardianSets.expirationTime = uint32(block.timestamp) + 86400;
     }
 
-    function expireGuardianSet(uint32 index) internal {
-        _state.guardianSets[index].expirationTime = uint32(block.timestamp) + 86400;
-    }
-
-    function storeGuardianSet(Structs.GuardianSet memory set, uint32 index) internal {
-        _state.guardianSets[index] = set;
+    function storeGuardianSet(Structs.GuardianSet memory set) internal {
+        _state.guardianSets = set;
     }
 
     function setInitialized(address implementatiom) internal {
