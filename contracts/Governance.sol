@@ -14,9 +14,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event GuardianSetAdded(uint32 indexed index);
 
-    // "Core" (left padded)
-    bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
-
     function submitContractUpgrade(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
@@ -25,7 +22,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
         GovernanceStructs.ContractUpgrade memory upgrade = parseContractUpgrade(vm.payload);
 
-        require(upgrade.module == module, "Invalid Module");
         require(upgrade.chain == chainId(), "Invalid Chain");
 
         setGovernanceActionConsumed(vm.hash);
@@ -41,7 +37,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
         GovernanceStructs.SetMessageFee memory upgrade = parseSetMessageFee(vm.payload);
 
-        require(upgrade.module == module, "Invalid Module");
         require(upgrade.chain == chainId(), "Invalid Chain");
 
         setGovernanceActionConsumed(vm.hash);
@@ -57,7 +52,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
         GovernanceStructs.GuardianSetUpgrade memory upgrade = parseGuardianSetUpgrade(vm.payload);
 
-        require(upgrade.module == module, "invalid Module");
         require(upgrade.chain == chainId() || upgrade.chain == 0, "invalid Chain");
 
         require(upgrade.newGuardianSet.keys.length > 0, "new guardian set is empty");
@@ -76,7 +70,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
         GovernanceStructs.TransferFees memory transfer = parseTransferFees(vm.payload);
 
-        require(transfer.module == module, "invalid Module");
         require(transfer.chain == chainId() || transfer.chain == 0, "invalid Chain");
 
         setGovernanceActionConsumed(vm.hash);
@@ -105,7 +98,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         if (!isValid){
             return (false, reason);
         }
-
 
         // verify source
         if (uint16(vm.emitterChainId) != governanceChainId()) {

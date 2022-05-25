@@ -12,17 +12,14 @@ import "./NFTBridgeGetters.sol";
 import "./NFTBridgeSetters.sol";
 import "./NFTBridgeStructs.sol";
 
-import "../interfaces/IWormhole.sol";
+import "../interfaces/ICore.sol";
 
 contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgrade {
     using BytesLib for bytes;
 
-    // "NFTBridge" (left padded)
-    bytes32 constant module = 0x00000000000000000000000000000000000000000000004e4654427269646765;
-
     // Execute a RegisterChain governance message
     function registerChain(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        (ICore.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
 
         setGovernanceActionConsumed(vm.hash);
@@ -36,7 +33,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        (ICore.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
 
         setGovernanceActionConsumed(vm.hash);
@@ -48,8 +45,8 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         upgradeImplementation(address(uint160(uint256(implementation.newContract))));
     }
 
-    function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason){
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
+    function verifyGovernanceVM(bytes memory encodedVM) internal view returns (ICore.VM memory parsedVM, bool isValid, string memory invalidReason){
+        (ICore.VM memory vm, bool valid, string memory reason) = core().parseAndVerifyVM(encodedVM);
 
         if(!valid){
             return (vm, valid, reason);
@@ -88,10 +85,6 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
 
         // governance header
 
-        chain.module = encoded.toBytes32(index);
-        index += 32;
-        require(chain.module == module, "invalid RegisterChain: wrong module");
-
         chain.action = encoded.toUint8(index);
         index += 1;
         require(chain.action == 1, "invalid RegisterChain: wrong action");
@@ -114,10 +107,6 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         uint index = 0;
 
         // governance header
-
-        chain.module = encoded.toBytes32(index);
-        index += 32;
-        require(chain.module == module, "invalid UpgradeContract: wrong module");
 
         chain.action = encoded.toUint8(index);
         index += 1;

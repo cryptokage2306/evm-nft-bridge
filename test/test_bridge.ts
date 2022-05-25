@@ -12,7 +12,7 @@ const TruffleAssert = require("truffle-assertions");
 require("dotenv").config({ path: "../.env" });
 
 const Setup2 = artifacts.require("Setup");
-const WormholeImplementationFullABI = jsonfile.readFileSync(
+const CoreImplementationFullABI = jsonfile.readFileSync(
   "artifacts/contracts/Implementation.sol/Implementation.json"
 ).abi;
 
@@ -56,7 +56,7 @@ describe("Bridge", function () {
     };
   };
 
-  const deployWormhole = async () => {
+  const deployCore = async () => {
     const Setup = await ethers.getContractFactory("Setup");
     const setup = await Setup.deploy();
 
@@ -76,11 +76,11 @@ describe("Bridge", function () {
         governanceContract
       )
       .encodeABI();
-    const Wormhole = await ethers.getContractFactory("Wormhole");
-    const wormhole = await Wormhole.deploy(setup.address, initData);
+    const Core = await ethers.getContractFactory("Core");
+    const core = await Core.deploy(setup.address, initData);
 
-    await wormhole.deployed();
-    const wh = wormhole.address;
+    await core.deployed();
+    const wh = core.address;
     return {
       wh,
     };
@@ -89,7 +89,7 @@ describe("Bridge", function () {
   beforeEach(async function () {
     const [owner] = await ethers.getSigners();
     const { currentImplAddress } = await deployMinterBurner();
-    const { wh } = await deployWormhole();
+    const { wh } = await deployCore();
     const Bridge = await ethers.getContractFactory("Bridge");
     const BridgeContract1 = await Bridge.deploy(currentImplAddress, wh);
     BridgeContract = await BridgeContract1.deployed();
@@ -196,14 +196,14 @@ describe("Bridge", function () {
     const bcv = await BridgeContract.deposit(123, resourceID, depositData);
     expect(await TestContract.ownerOf(1)).to.equal(BridgeContract.address);
 
-    let wormhole_Address = await BridgeContract.wormhole();
+    let core_Address = await BridgeContract.core();
 
-    const wormhole = new web3.eth.Contract(
-      WormholeImplementationFullABI,
-      wormhole_Address
+    const core = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
     );
     const log = (
-      await wormhole.getPastEvents("LogMessagePublished", {
+      await core.getPastEvents("LogMessagePublished", {
         fromBlock: "latest",
       })
     )[0].returnValues;

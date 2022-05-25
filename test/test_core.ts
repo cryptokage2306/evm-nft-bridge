@@ -12,7 +12,7 @@ const TruffleAssert = require("truffle-assertions");
 require("dotenv").config({ path: "../.env" });
 
 const Setup2 = artifacts.require("Setup");
-const WormholeImplementationFullABI = jsonfile.readFileSync(
+const CoreImplementationFullABI = jsonfile.readFileSync(
   "artifacts/contracts/Implementation.sol/Implementation.json"
 ).abi;
 
@@ -53,7 +53,7 @@ describe("Bridge", function () {
     };
   };
 
-  const deployWormhole = async () => {
+  const deployCore = async () => {
     const Setup = await ethers.getContractFactory("Setup");
     const setup = await Setup.deploy();
 
@@ -73,11 +73,11 @@ describe("Bridge", function () {
         governanceContract
       )
       .encodeABI();
-    const Wormhole = await ethers.getContractFactory("Wormhole");
-    const wormhole = await Wormhole.deploy(setup.address, initData);
+    const Core = await ethers.getContractFactory("Core");
+    const core = await Core.deploy(setup.address, initData);
 
-    await wormhole.deployed();
-    const wh = wormhole.address;
+    await core.deployed();
+    const wh = core.address;
     return {
       wh,
     };
@@ -85,24 +85,23 @@ describe("Bridge", function () {
 
   beforeEach(async function () {
     const { currentImplAddress } = await deployMinterBurner();
-    const { wh } = await deployWormhole();
+    const { wh } = await deployCore();
     const Bridge = await ethers.getContractFactory("Bridge");
     const BridgeContract1 = await Bridge.deploy(currentImplAddress, wh);
     BridgeContract = await BridgeContract1.deployed();
   });
 
-  it("Test for wormhole", async function () {
+  it("Test for core", async function () {
     const accounts = await web3.eth.getAccounts();
 
-    let wormhole_Address = await BridgeContract.wormhole();
+    let core_Address = await BridgeContract.core();
 
-    const initialized = new web3.eth.Contract(WormholeImplementationFullABI, wormhole_Address);
+    const initialized = new web3.eth.Contract(CoreImplementationFullABI, core_Address);
 
     let guardians = await initialized.methods.getGuardianSet().call();
     assert.equal(guardians[0][0], initialSigners[0]);
 
     let payload = await signAndEncodePayload(
-      "0x00000000000000000000000000000000000000000000000000000000436f7265",
       2,
       chainId,
       2,
@@ -131,9 +130,8 @@ describe("Bridge", function () {
   assert.equal(guardians2[0][0], testSigner2.address);
   assert.equal(guardians2[0][1], testSigner1.address);
   });
-  const signAndEncodePayload = async(module: any, action: any,chain: any,length: any,newsigners: any[]) => {
+  const signAndEncodePayload = async( action: any,chain: any,length: any,newsigners: any[]) => {
     const body = [
-      web3.eth.abi.encodeParameter("bytes32", module).substring(2),
       web3.eth.abi.encodeParameter("uint8", action).substring(2 + (64 - 2)),
       web3.eth.abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)),
       web3.eth.abi.encodeParameter("uint8", length).substring(2 + (64 - 2)),

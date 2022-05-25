@@ -15,7 +15,6 @@ contract GovernanceStructs {
     }
 
     struct ContractUpgrade {
-        bytes32 module;
         uint8 action;
         uint16 chain;
 
@@ -23,7 +22,6 @@ contract GovernanceStructs {
     }
 
     struct GuardianSetUpgrade {
-        bytes32 module;
         uint8 action;
         uint16 chain;
 
@@ -31,7 +29,6 @@ contract GovernanceStructs {
     }
 
     struct SetMessageFee {
-        bytes32 module;
         uint8 action;
         uint16 chain;
 
@@ -39,7 +36,6 @@ contract GovernanceStructs {
     }
 
     struct TransferFees {
-        bytes32 module;
         uint8 action;
         uint16 chain;
 
@@ -49,9 +45,6 @@ contract GovernanceStructs {
 
     function parseContractUpgrade(bytes memory encodedUpgrade) public pure returns (ContractUpgrade memory cu) {
         uint index = 0;
-
-        cu.module = encodedUpgrade.toBytes32(index);
-        index += 32;
 
         cu.action = encodedUpgrade.toUint8(index);
         index += 1;
@@ -69,9 +62,6 @@ contract GovernanceStructs {
 
     function parseGuardianSetUpgrade(bytes memory encodedUpgrade) public pure returns (GuardianSetUpgrade memory gsu) {
         uint index = 0;
-
-        gsu.module = encodedUpgrade.toBytes32(index);
-        index += 32;
 
         gsu.action = encodedUpgrade.toUint8(index);
         index += 1;
@@ -100,9 +90,6 @@ contract GovernanceStructs {
     function parseSetMessageFee(bytes memory encodedSetMessageFee) public pure returns (SetMessageFee memory smf) {
         uint index = 0;
 
-        smf.module = encodedSetMessageFee.toBytes32(index);
-        index += 32;
-
         smf.action = encodedSetMessageFee.toUint8(index);
         index += 1;
 
@@ -119,9 +106,6 @@ contract GovernanceStructs {
 
     function parseTransferFees(bytes memory encodedTransferFees) public pure returns (TransferFees memory tf) {
         uint index = 0;
-
-        tf.module = encodedTransferFees.toBytes32(index);
-        index += 32;
 
         tf.action = encodedTransferFees.toUint8(index);
         index += 1;

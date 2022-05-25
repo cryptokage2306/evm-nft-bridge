@@ -38,8 +38,8 @@ contract NFTBridgeSetters is NFTBridgeState {
         _state.tokenImplementation = impl;
     }
 
-    function setWormhole(address wh) internal {
-        _state.wormhole = payable(wh);
+    function setCore(address wh) internal {
+        _state.core = payable(wh);
     }
 
     function setWrappedAsset(uint16 tokenChainId, bytes32 tokenAddress, address wrapper) internal {

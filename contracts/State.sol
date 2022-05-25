@@ -19,7 +19,7 @@ contract Events {
 }
 
 contract Storage {
-    struct WormholeState {
+    struct CoreState {
         Structs.Provider provider;
 
         // Mapping of guardian_set_index => guardian set
@@ -43,5 +43,5 @@ contract Storage {
 }
 
 contract State {
-    Storage.WormholeState _state;
+    Storage.CoreState _state;
 }

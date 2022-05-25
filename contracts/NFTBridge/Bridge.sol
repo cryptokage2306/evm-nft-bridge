@@ -37,13 +37,13 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
     event ResourceId(bytes32 _resourceId, address token);
 
-    constructor(address _implContract,address _wormhole) {
+    constructor(address _implContract,address _core) {
         implContract = _implContract;
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
         _setRoleAdmin(ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(RELAYER_ROLE, DEFAULT_ADMIN_ROLE);
-        setWormhole( _wormhole);
+        setCore( _core);
     }
 
     function onERC721Received(
@@ -92,13 +92,13 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
     function logTransfer(NFTBridgeStructs.Transfer memory transfer, uint256 callValue, uint64 nonce) internal returns (uint64 sequence) {
         bytes memory encoded = encodeTransfer(transfer);
 
-        sequence = wormhole().publishMessage{
+        sequence = core().publishMessage{
             value : callValue
         }(nonce, encoded, 15); 
     }
 
     function encodeTransfer(NFTBridgeStructs.Transfer memory transfer) public pure returns (bytes memory encoded) {
-        // There is a global limit on 200 bytes of tokenURI in Wormhole due to Solana
+        // There is a global limit on 200 bytes of tokenURI in Core due to Solana
         require(bytes(transfer.uri).length <= 200, "tokenURI must not exceed 200 bytes");
 
         encoded = abi.encodePacked(
@@ -145,7 +145,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
     function executeProposal(
         bytes memory encodedVm
     ) external {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
+        (ICore.VM memory vm, bool valid, string memory reason) = core().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
 
@@ -177,7 +177,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         }
     }
 
-    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
+    function verifyBridgeVM(ICore.VM memory vm) internal view returns (bool){
         if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
             return true;
         }

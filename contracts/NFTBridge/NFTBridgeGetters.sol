@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "../interfaces/IWormhole.sol";
+import "../interfaces/ICore.sol";
 
 import "./NFTBridgeState.sol";
 
@@ -22,8 +22,8 @@ contract NFTBridgeGetters is NFTBridgeState {
         return _state.completedTransfers[hash];
     }
 
-    function wormhole() public view returns (IWormhole) {
-        return IWormhole(_state.wormhole);
+    function core() public view returns (ICore) {
+        return ICore(_state.core);
     }
 
     function chainId() public view returns (uint16){

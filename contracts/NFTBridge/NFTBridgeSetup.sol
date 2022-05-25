@@ -11,14 +11,14 @@ contract NFTBridgeSetup is NFTBridgeSetters, ERC1967Upgrade {
     function setup(
         address implementation,
         uint16 chainId,
-        address wormhole,
+        address core,
         uint16 governanceChainId,
         bytes32 governanceContract,
         address tokenImplementation
     ) public {
         setChainId(chainId);
 
-        setWormhole(wormhole);
+        setCore(core);
 
         setGovernanceChainId(governanceChainId);
         setGovernanceContract(governanceContract);

@@ -23,7 +23,7 @@ contract NFTBridgeStorage {
     }
 
     struct State {
-        address payable wormhole;
+        address payable core;
         address tokenImplementation;
 
         Provider provider;

@@ -14,7 +14,7 @@ async function main() {
     const TestContract = await testContract.attach("0x7052574c4e1747DF5174CcDe60d941392fc0287E")
 
     const resourceID = "0x9b05a194b2aafc404907ab4a20261a2e917ea70a5c9f44057f5b5e0ed2b4da5b"
-    const WormholeImplementationFullABI = jsonfile.readFileSync(
+    const CoreImplementationFullABI = jsonfile.readFileSync(
         "artifacts/contracts/Implementation.sol/Implementation.json"
       ).abi;
 

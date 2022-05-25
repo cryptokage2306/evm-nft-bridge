@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 contract Implementation is Governance {
     event LogMessagePublished(address indexed sender, uint64 sequence, uint64 nonce, bytes payload, uint8 consistencyLevel);
 
-    // Publish a message to be attested by the Wormhole network
+    // Publish a message to be attested by the core network
     function publishMessage(
         uint64 nonce,
         bytes memory payload,
@@ -45,5 +45,5 @@ contract Implementation is Governance {
 
     fallback() external payable {revert("unsupported");}
 
-    receive() external payable {revert("the Wormhole contract does not accept assets");}
+    receive() external payable {revert("the Core contract does not accept assets");}
 }

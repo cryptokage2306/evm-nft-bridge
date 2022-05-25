@@ -14,9 +14,6 @@ contract NFTBridgeStructs {
     }
 
     struct RegisterChain {
-        // Governance Header
-        // module: "NFTBridge" left-padded
-        bytes32 module;
         // governance action: 1
         uint8 action;
         // governance paket chain id: this or 0
@@ -29,9 +26,6 @@ contract NFTBridgeStructs {
     }
 
     struct UpgradeContract {
-        // Governance Header
-        // module: "NFTBridge" left-padded
-        bytes32 module;
         // governance action: 2
         uint8 action;
         // governance paket chain id
