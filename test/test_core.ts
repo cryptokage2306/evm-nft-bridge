@@ -1,11 +1,8 @@
-
 import { assert, expect } from "chai";
 import { ethers, upgrades, artifacts, web3 } from "hardhat";
 import { getImplementationAddress } from "@openzeppelin/upgrades-core";
 
-import { createERCDepositData, assertIsRejected } from "./helper";
 import { Bridge, Implementation, TestERC721 } from "../typechain";
-import { join } from "path";
 
 const jsonfile = require("jsonfile");
 const elliptic = require("elliptic");
@@ -19,6 +16,7 @@ const CoreImplementationFullABI = jsonfile.readFileSync(
 ).abi;
 const testGovernanceContract =
   "0x0000000000000000000000000000000000000000000000000000000000000004";
+const MockImplementation = artifacts.require("MockImplementation");
 
 const chainId = process.env.INIT_CHAIN_ID;
 const governanceChainId = process.env.INIT_GOV_CHAIN_ID;
@@ -31,7 +29,6 @@ const testSigner3PK =
   "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fb";
 const testBadSigner1PK =
   "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fc";
-
 
 describe("Core Testing", function () {
   const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner1PK);
@@ -317,7 +314,7 @@ describe("Core Testing", function () {
     assert.equal(result[2], "VM signature invalid");
   });
 
-  it.only("should set and enforce fees", async function () {
+  it("should set and enforce fees", async function () {
     let core_Address = await BridgeContract.core();
 
     const initialized = new web3.eth.Contract(
@@ -330,30 +327,27 @@ describe("Core Testing", function () {
     const timestamp = 1000;
     const nonce = 1001;
     const emitterChainId = testGovernanceChainId;
-    const emitterAddress = testGovernanceContract
+    const emitterAddress = testGovernanceContract;
 
-    let payload = await signAndEncodePayload3(3, chainId, 1111);
+    let payload = await signAndEncodePayloadFees(3, chainId, 1111);
 
     const vm = await signAndEncodeVM(
-        timestamp,
-        nonce,
-        emitterChainId,
-        emitterAddress,
-        0,
-        "0x"+payload,
-        [
-            testSigner1PK,
-        ],
-        2
+      timestamp,
+      nonce,
+      emitterChainId,
+      emitterAddress,
+      0,
+      "0x" + payload,
+      [testSigner1PK],
+      2
     );
-
 
     let before = await initialized.methods.messageFee().call();
 
     let set = await initialized.methods.submitSetMessageFee("0x" + vm).send({
-        value: 0,
-        from: accounts[0],
-        gasLimit: 1000000
+      value: 0,
+      from: accounts[0],
+      gasLimit: 1000000,
     });
 
     let after = await initialized.methods.messageFee().call();
@@ -362,48 +356,91 @@ describe("Core Testing", function () {
     assert.equal(after, 1111);
 
     // test message publishing
-    await initialized.methods.publishMessage(
-        "0x123",
-        "0x123321",
-        32
-    ).send({
-        from: accounts[0],
-        value: 1111
-    })
+    await initialized.methods.publishMessage("0x123", "0x123321", 32).send({
+      from: accounts[0],
+      value: 1111,
+    });
 
     let failed = false;
     try {
-        await initialized.methods.publishMessage(
-            "0x123",
-            "0x123321",
-            32
-        ).send({
-            value: 1110,
-            from: accounts[0]
-        })
+      await initialized.methods.publishMessage("0x123", "0x123321", 32).send({
+        value: 1110,
+        from: accounts[0],
+      });
     } catch (e) {
-        failed = true
+      failed = true;
     }
 
     assert.equal(failed, true);
-})
-const signAndEncodePayload3 = async (
-  action: any,
-  chain: any,
-  msgfee: any,
-) => {
-  const body = [
-    web3.eth.abi.encodeParameter("uint8", action).substring(2 + (64 - 2)),
-    web3.eth.abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)),
-    web3.eth.abi.encodeParameter("uint256", msgfee).substring(2),
-  ].join("");
+  });
 
-  return body;
-};
+  it.only("should accept smart contract upgrades", async function () {
+    let core_Address = await BridgeContract.core();
 
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const accounts = await web3.eth.getAccounts();
 
+    const mock = await MockImplementation.new();
 
-  
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = testGovernanceChainId;
+    const emitterAddress = testGovernanceContract;
+
+    let data = await signAndEncodePayloadContract(1, testChainId, mock.address);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      emitterChainId,
+      emitterAddress,
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+
+    TruffleAssert.passes(
+      await initialized.methods.submitContractUpgrade("0x" + vm).send({
+        value: 0,
+        from: accounts[0],
+        gasLimit: 1000000,
+      })
+    );
+  });
+
+  const signAndEncodePayloadContract = async (
+    action: any,
+    chain: any,
+    add: any
+  ) => {
+    const body = [
+      web3.eth.abi.encodeParameter("uint8", action).substring(2 + (64 - 2)),
+      web3.eth.abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)),
+      // Recipient
+      web3.eth.abi.encodeParameter("address", add).substring(2),
+    ].join("");
+
+    return body;
+  };
+
+  const signAndEncodePayloadFees = async (
+    action: any,
+    chain: any,
+    msgfee: any
+  ) => {
+    const body = [
+      web3.eth.abi.encodeParameter("uint8", action).substring(2 + (64 - 2)),
+      web3.eth.abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)),
+      web3.eth.abi.encodeParameter("uint256", msgfee).substring(2),
+    ].join("");
+
+    return body;
+  };
+
   const signAndEncodePayload = async (
     action: any,
     chain: any,
@@ -449,7 +486,6 @@ const signAndEncodePayload3 = async (
         .substring(2 + (64 - 2)),
       data.substring(2),
     ];
-    console.log(body);
     const hash = web3.utils.soliditySha3("0x" + body.join(""));
     if (!hash) return;
 
