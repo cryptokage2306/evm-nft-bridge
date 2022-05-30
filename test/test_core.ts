@@ -1,13 +1,12 @@
-import { assert, expect } from "chai";
+import { assert } from "chai";
 import { ethers, upgrades, artifacts, web3 } from "hardhat";
 import { getImplementationAddress } from "@openzeppelin/upgrades-core";
+const Implementation1 = artifacts.require("Implementation");
 
-import { createERCDepositData, assertIsRejected } from "./helper";
-import { Bridge, Implementation, TestERC721 } from "../typechain";
+import { Bridge, Implementation } from "../typechain";
 
 const jsonfile = require("jsonfile");
 const elliptic = require("elliptic");
-const TruffleAssert = require("truffle-assertions");
 
 require("dotenv").config({ path: "../.env" });
 
@@ -15,20 +14,37 @@ const Setup2 = artifacts.require("Setup");
 const CoreImplementationFullABI = jsonfile.readFileSync(
   "artifacts/contracts/Implementation.sol/Implementation.json"
 ).abi;
+const MockImplementation = artifacts.require("MockImplementation");
+const testGovernanceContract =
+  "0x0000000000000000000000000000000000000000000000000000000000000004";
 
-const initialSigners = [process.env.INIT_SIGNERS];
 const chainId = process.env.INIT_CHAIN_ID;
 const governanceChainId = process.env.INIT_GOV_CHAIN_ID;
-const governanceContract = process.env.INIT_GOV_CONTRACT;
-const testSigner1PK = process.env.PRIVATE_KEY;
-const testSigner3PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
-const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
+const governanceContract = testGovernanceContract;
+const testSigner1PK =
+  "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
+const testSigner2PK =
+  "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
+const testSigner3PK =
+  "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fb";
+const testBadSigner1PK =
+  "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fc";
+// const core = '0x' + Buffer.from("Core").toString("hex").padStart(64,0)
+const actionContractUpgrade = "01";
+const actionGuardianSetUpgrade = "02";
+const actionMessageFee = "3";
+const actionTransferFee = "4";
 
 describe("Bridge", function () {
-  const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner3PK);
+  const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner1PK);
   const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
+  const testSigner3 = web3.eth.accounts.privateKeyToAccount(testSigner3PK);
+  const initialSigners = [testSigner1.address];
+
   let BridgeContract: Bridge;
   let ImplementationContract: Implementation;
+  const testGovernanceChainId = "1";
+  const testChainId = "2";
 
   const deployMinterBurner = async () => {
     const MinterBurnerPauser = await ethers.getContractFactory(
@@ -91,22 +107,51 @@ describe("Bridge", function () {
     BridgeContract = await BridgeContract1.deployed();
   });
 
-  it("Test for core", async function () {
+  it("should be initialized with the correct signers and values", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+
+    const set = await initialized.methods.getGuardianSet().call();
+
+    // check set
+    assert.lengthOf(set[0], 1);
+    assert.equal(set[0][0], testSigner1.address);
+
+    // check expiration
+    assert.equal(set.expirationTime, "0");
+
+    // chain id
+    const chainId = await initialized.methods.chainId().call();
+    assert.equal(chainId, testChainId);
+
+    // governance
+    const governanceChainId = await initialized.methods
+      .governanceChainId()
+      .call();
+    assert.equal(governanceChainId, testGovernanceChainId);
+  });
+
+  it("Should accept new guardians", async function () {
     const accounts = await web3.eth.getAccounts();
 
     let core_Address = await BridgeContract.core();
 
-    const initialized = new web3.eth.Contract(CoreImplementationFullABI, core_Address);
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
 
     let guardians = await initialized.methods.getGuardianSet().call();
     assert.equal(guardians[0][0], initialSigners[0]);
 
-    let payload = await signAndEncodePayload(
-      2,
-      chainId,
-      2,
-      [testSigner2.address,testSigner1.address]
-    )
+    let payload = await signAndEncodePayload(2, chainId, 2, [
+      testSigner2.address,
+      testSigner1.address,
+    ]);
 
     let encodedVM = await signAndEncodeVM(
       0,
@@ -114,33 +159,190 @@ describe("Bridge", function () {
       governanceChainId,
       governanceContract,
       0,
-      "0x"+payload,
+      "0x" + payload,
       [testSigner1PK],
       15
     );
 
-    let set = await initialized.methods.submitNewGuardianSet("0x" + encodedVM).send({
-      value: 0,
-      from: accounts[0],
-      gasLimit: 1000000
+    let set = await initialized.methods
+      .submitNewGuardianSet("0x" + encodedVM)
+      .send({
+        value: 0,
+        from: accounts[0],
+        gasLimit: 1000000,
+      });
+
+    let guardians2 = await initialized.methods.getGuardianSet().call();
+
+    assert.equal(guardians2[0][0], testSigner2.address);
+    assert.equal(guardians2[0][1], testSigner1.address);
   });
 
-  let guardians2 = await initialized.methods.getGuardianSet().call();
+  it("should log a published message correctly", async function () {
+    let core_Address = await BridgeContract.core();
 
-  assert.equal(guardians2[0][0], testSigner2.address);
-  assert.equal(guardians2[0][1], testSigner1.address);
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const accounts = await web3.eth.getAccounts();
+
+    const log = await initialized.methods
+      .publishMessage("0x123", "0x123321", 32)
+      .send({
+        value: 0, // fees are set to 0 initially
+        from: accounts[0],
+      });
+
+    assert.equal(
+      log.events.LogMessagePublished.returnValues.sender.toString(),
+      accounts[0]
+    );
+    assert.equal(
+      log.events.LogMessagePublished.returnValues.sequence.toString(),
+      "0"
+    );
+    assert.equal(log.events.LogMessagePublished.returnValues.nonce, 291);
+    assert.equal(
+      log.events.LogMessagePublished.returnValues.payload.toString(),
+      "0x123321"
+    );
+    assert.equal(
+      log.events.LogMessagePublished.returnValues.consistencyLevel,
+      32
+    );
   });
-  const signAndEncodePayload = async( action: any,chain: any,length: any,newsigners: any[]) => {
+
+  it("parses VMs correctly", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = 11;
+    const emitterAddress =
+      "0x0000000000000000000000000000000000000000000000000000000000000eee";
+    const data = "0xaaaaaa";
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      emitterChainId,
+      emitterAddress,
+      1337,
+      data,
+      [testSigner1PK],
+      2
+    );
+
+    let result;
+    try {
+      result = await initialized.methods.parseAndVerifyVM("0x" + vm).call();
+    } catch (err) {
+      console.log(err);
+      assert.fail("parseAndVerifyVM failed");
+    }
+
+    assert.equal(result.vm.version, 1);
+    assert.equal(result.vm.timestamp, timestamp);
+    assert.equal(result.vm.nonce, nonce);
+    assert.equal(result.vm.emitterChainId, emitterChainId);
+    assert.equal(result.vm.emitterAddress, emitterAddress);
+    assert.equal(result.vm.payload, data);
+    assert.equal(result.vm.sequence, 1337);
+    assert.equal(result.vm.consistencyLevel, 2);
+
+    assert.equal(result.valid, true);
+
+    assert.equal(result.reason, "");
+  });
+
+  it("should fail quorum on VMs with no signers", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = 11;
+    const emitterAddress =
+      "0x0000000000000000000000000000000000000000000000000000000000000eee";
+    const data = "0xaaaaaa";
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      emitterChainId,
+      emitterAddress,
+      1337,
+      data,
+      [], // no valid signers present
+      2
+    );
+
+    let result = await initialized.methods.parseAndVerifyVM("0x" + vm).call();
+    assert.equal(result[1], false);
+    assert.equal(result[2], "no quorum");
+  });
+
+  it("should fail to verify on VMs with bad signer", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = 11;
+    const emitterAddress =
+      "0x0000000000000000000000000000000000000000000000000000000000000eee";
+    const data = "0xaaaaaa";
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      emitterChainId,
+      emitterAddress,
+      1337,
+      data,
+      [
+        testBadSigner1PK, // not a valid signer
+      ],
+      2
+    );
+
+    let result = await initialized.methods.parseAndVerifyVM("0x" + vm).call();
+    assert.equal(result[1], false);
+    assert.equal(result[2], "VM signature invalid");
+  });
+
+  
+  const signAndEncodePayload = async (
+    action: any,
+    chain: any,
+    length: any,
+    newsigners: any[]
+  ) => {
     const body = [
       web3.eth.abi.encodeParameter("uint8", action).substring(2 + (64 - 2)),
       web3.eth.abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)),
       web3.eth.abi.encodeParameter("uint8", length).substring(2 + (64 - 2)),
-      web3.eth.abi.encodeParameter("address", newsigners[0]).substring(2 + (64 - 40)),
-      web3.eth.abi.encodeParameter("address", newsigners[1]).substring(2 + (64 - 40)),
-    ].join("")
+      web3.eth.abi
+        .encodeParameter("address", newsigners[0])
+        .substring(2 + (64 - 40)),
+      web3.eth.abi
+        .encodeParameter("address", newsigners[1])
+        .substring(2 + (64 - 40)),
+    ].join("");
 
     return body;
-  }
+  };
 
   const signAndEncodeVM = async function (
     timestamp: any,
