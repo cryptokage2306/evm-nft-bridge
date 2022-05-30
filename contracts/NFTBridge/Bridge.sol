@@ -36,6 +36,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
     );
 
     event ResourceId(bytes32 _resourceId, address token);
+    event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
     constructor(address _implContract,address _core) {
         implContract = _implContract;
@@ -87,6 +88,22 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
                 uri          : metaData,
                 user         : msg.sender
             }), msg.value, nonces[destinationDomainID]); 
+    }
+
+    function upgrade(bytes memory encodedVM) public {
+        (ICore.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        require(valid, reason);
+        address currentImplementation = implContract;
+
+        setGovernanceActionConsumed(vm.hash);
+
+        NFTBridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
+
+        require(implementation.chainId == chainId(), "wrong chain id");
+
+        implContract = address(uint160(uint256(implementation.newContract)));
+        emit ContractUpgraded(currentImplementation, implContract);
+
     }
 
     function logTransfer(NFTBridgeStructs.Transfer memory transfer, uint256 callValue, uint64 nonce) internal returns (uint64 sequence) {

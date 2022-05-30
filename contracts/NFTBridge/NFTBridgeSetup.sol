@@ -5,26 +5,14 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 import "./NFTBridgeGovernance.sol";
 
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
-
-contract NFTBridgeSetup is NFTBridgeSetters, ERC1967Upgrade {
+contract NFTBridgeSetup is NFTBridgeSetters {
     function setup(
-        address implementation,
         uint16 chainId,
-        address core,
         uint16 governanceChainId,
-        bytes32 governanceContract,
-        address tokenImplementation
+        bytes32 governanceContract
     ) public {
         setChainId(chainId);
-
-        setCore(core);
-
         setGovernanceChainId(governanceChainId);
         setGovernanceContract(governanceContract);
-
-        setTokenImplementation(tokenImplementation);
-
-        _upgradeTo(implementation);
     }
 }

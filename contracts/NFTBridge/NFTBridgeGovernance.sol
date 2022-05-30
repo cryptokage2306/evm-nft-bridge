@@ -31,20 +31,6 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
     }
 
-    // Execute a UpgradeContract governance message
-    function upgrade(bytes memory encodedVM) public {
-        (ICore.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
-        require(valid, reason);
-
-        setGovernanceActionConsumed(vm.hash);
-
-        NFTBridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
-
-        require(implementation.chainId == chainId(), "wrong chain id");
-
-        upgradeImplementation(address(uint160(uint256(implementation.newContract))));
-    }
-
     function verifyGovernanceVM(bytes memory encodedVM) internal view returns (ICore.VM memory parsedVM, bool isValid, string memory invalidReason){
         (ICore.VM memory vm, bool valid, string memory reason) = core().parseAndVerifyVM(encodedVM);
 
@@ -66,24 +52,8 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         return (vm, true, "");
     }
 
-    event ContractUpgraded(address indexed oldContract, address indexed newContract);
-    function upgradeImplementation(address newImplementation) internal {
-        address currentImplementation = _getImplementation();
-
-        _upgradeTo(newImplementation);
-
-        // Call initialize function of the new implementation
-        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
-
-        require(success, string(reason));
-
-        emit ContractUpgraded(currentImplementation, newImplementation);
-    }
-
     function parseRegisterChain(bytes memory encoded) public pure returns(NFTBridgeStructs.RegisterChain memory chain) {
         uint index = 0;
-
-        // governance header
 
         chain.action = encoded.toUint8(index);
         index += 1;

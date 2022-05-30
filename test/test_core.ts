@@ -374,7 +374,7 @@ describe("Core Testing", function () {
     assert.equal(failed, true);
   });
 
-  it.only("should accept smart contract upgrades", async function () {
+  it("should accept smart contract upgrades", async function () {
     let core_Address = await BridgeContract.core();
 
     const initialized = new web3.eth.Contract(
@@ -410,6 +410,11 @@ describe("Core Testing", function () {
         gasLimit: 1000000,
       })
     );
+    const mockImpl = new web3.eth.Contract(MockImplementation.abi, core_Address);
+
+    let isUpgraded = await mockImpl.methods.testNewImplementationActive().call();
+
+    assert.ok(isUpgraded);
   });
 
   const signAndEncodePayloadContract = async (
