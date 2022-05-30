@@ -15,17 +15,13 @@ const Setup2 = artifacts.require("Setup");
 const CoreImplementationFullABI = jsonfile.readFileSync(
   "artifacts/contracts/Implementation.sol/Implementation.json"
 ).abi;
-const BridgeImplementationFullABI = jsonfile.readFileSync("artifacts/contracts/NFTBridge/Bridge.sol/Bridge.json").abi
 
-const testChainId = "2";
-const testGovernanceChainId = "1";
-const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
 const resourceID =
   "0x9b05a194b2aafc404907ab4a20261a2e917ea70a5c9f44057f5b5e0ed2b4da5b";
 const initialSigners = [process.env.INIT_SIGNERS];
-const chainId = testChainId;
-const governanceChainId = testGovernanceChainId;
-const governanceContract = testGovernanceContract;
+const chainId = process.env.INIT_CHAIN_ID;
+const governanceChainId = process.env.INIT_GOV_CHAIN_ID;
+const governanceContract = process.env.INIT_GOV_CONTRACT;
 const testSigner1PK = process.env.PRIVATE_KEY;
 const testSigner3PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
@@ -233,50 +229,6 @@ describe("Bridge", function () {
   });
 
   
-  it("should register a foreign bridge implementation correctly", async function () {
-    const initialized = new web3.eth.Contract(BridgeImplementationFullABI, BridgeContract.address);
-    const accounts = await web3.eth.getAccounts();
-    const testForeignChainId = "1";
-    const testForeignBridgeContract = "0x000000000000000000000000000000000000000000000000000000000000ffff";
-    let data = [
-        "0x",
-        "00000000000000000000000000000000000000000000004e4654427269646765",
-        "01",
-        "0000",
-        web3.eth.abi.encodeParameter("uint16", testForeignChainId).substring(2 + (64 - 4)),
-        web3.eth.abi.encodeParameter("bytes32", testForeignBridgeContract).substring(2),
-    ].join('')
-
-    const vm = await signAndEncodeVM(
-        1,
-        1,
-        testGovernanceChainId,
-        testGovernanceContract,
-        0,
-        data,
-        [
-            testSigner1PK
-        ],
-        0
-    );
-
-
-    let before = await initialized.methods.bridgeContracts(testForeignChainId).call();
-
-    assert.equal(before, "0x0000000000000000000000000000000000000000000000000000000000000000");
-
-    await initialized.methods.registerChain("0x" + vm).send({
-        value: 0,
-        from: accounts[0],
-        gasLimit: 2000000
-    });
-
-    let after = await initialized.methods.bridgeContracts(testForeignChainId).call();
-
-    assert.equal(after, testForeignBridgeContract);
-})
-
-
   const signAndEncodeVM = async function (
     timestamp: any,
     nonce: any,
