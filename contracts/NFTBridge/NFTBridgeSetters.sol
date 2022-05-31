@@ -34,24 +34,8 @@ contract NFTBridgeSetters is NFTBridgeState {
         _state.bridgeImplementations[chainId] = bridgeContract;
     }
 
-    function setTokenImplementation(address impl) internal {
-        _state.tokenImplementation = impl;
-    }
-
     function setCore(address wh) internal {
         _state.core = payable(wh);
     }
 
-    function setWrappedAsset(uint16 tokenChainId, bytes32 tokenAddress, address wrapper) internal {
-        _state.wrappedAssets[tokenChainId][tokenAddress] = wrapper;
-        _state.isWrappedAsset[wrapper] = true;
-    }
-
-    function setSplCache(uint256 tokenId, NFTBridgeStorage.SPLCache memory cache) internal {
-        _state.splCache[tokenId] = cache;
-    }
-
-    function clearSplCache(uint256 tokenId) internal {
-        delete _state.splCache[tokenId];
-    }
 }

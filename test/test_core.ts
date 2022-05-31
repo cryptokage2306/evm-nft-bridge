@@ -1,6 +1,7 @@
 import { assert, expect } from "chai";
 import { ethers, upgrades, artifacts, web3 } from "hardhat";
 import { getImplementationAddress } from "@openzeppelin/upgrades-core";
+import { assertIsRejected } from "./helper";
 
 import { Bridge, Implementation, TestERC721 } from "../typechain";
 
@@ -402,7 +403,6 @@ describe("Core Testing", function () {
       [testSigner1PK],
       2
     );
-
     TruffleAssert.passes(
       await initialized.methods.submitContractUpgrade("0x" + vm).send({
         value: 0,
@@ -416,6 +416,207 @@ describe("Core Testing", function () {
 
     assert.ok(isUpgraded);
   });
+  
+  it("should not accept smart contract upgrades with invalid guardian set", async function () {
+    const mock = await MockImplementation.new();
+
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterAddress = testGovernanceContract;
+
+    let data = await signAndEncodePayloadContract(1, testChainId, mock.address);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      2,
+      emitterAddress,
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+
+    await assertIsRejected(
+      ImplementationContract.submitContractUpgrade("0x"+vm),
+      /invalid guardian set/,
+      "invalid guardian set"
+    );
+  })
+
+  it("should not accept smart contract upgrades with wrong governance chain", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const accounts = await web3.eth.getAccounts();
+
+    const mock = await MockImplementation.new();
+
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = testGovernanceChainId;
+    const emitterAddress = testGovernanceContract;
+
+    let data = await signAndEncodePayloadContract(1, testChainId, mock.address);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      0,
+      emitterAddress,
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+    expect(initialized.methods.submitContractUpgrade("0x" + vm).send({
+      value: 0,
+      from: accounts[0],
+      gasLimit: 1000000,
+    })).to.be.reverted;
+
+  });
+
+  it("should not accept smart contract upgrades with wrong governance contract", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const accounts = await web3.eth.getAccounts();
+
+    const mock = await MockImplementation.new();
+
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = testGovernanceChainId;
+
+    let data = await signAndEncodePayloadContract(1, testChainId, mock.address);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      emitterChainId,
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+    expect(initialized.methods.submitContractUpgrade("0x" + vm).send({
+      value: 0,
+      from: accounts[0],
+      gasLimit: 1000000,
+    })).to.be.reverted;
+
+  });
+
+  it("should not accept smart contract upgrades same governance action", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const accounts = await web3.eth.getAccounts();
+
+    const mock = await MockImplementation.new();
+
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = testGovernanceChainId;
+    const emitterAddress = testGovernanceContract;
+
+    let data = await signAndEncodePayloadContract(1, testChainId, mock.address);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      emitterChainId,
+      emitterAddress,
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+      
+    TruffleAssert.passes(
+      await initialized.methods.submitContractUpgrade("0x" + vm).send({
+        value: 0,
+        from: accounts[0],
+        gasLimit: 1000000,
+      })
+    );
+    const mockImpl = new web3.eth.Contract(MockImplementation.abi, core_Address);
+
+    let isUpgraded = await mockImpl.methods.testNewImplementationActive().call();
+
+    assert.ok(isUpgraded);
+
+    expect(initialized.methods.submitContractUpgrade("0x" + vm).send({
+      value: 0,
+      from: accounts[0],
+      gasLimit: 1000000,
+    })).to.be.reverted;
+  });
+
+  it("should transfer out collected fees", async function () {
+    let core_Address = await BridgeContract.core();
+
+    const initialized = new web3.eth.Contract(
+      CoreImplementationFullABI,
+      core_Address
+    );
+    const accounts = await web3.eth.getAccounts();
+
+    const receiver = "0x" + zeroPadBytes(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16), 20);
+
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterChainId = testGovernanceChainId;
+    const emitterAddress = testGovernanceContract
+
+    let data = await signAndEncodePayloadContractFees(4,2,11,receiver)
+
+    const vm = await signAndEncodeVM(
+        timestamp,
+        nonce,
+        emitterChainId,
+        emitterAddress,
+        0,
+        "0x"+data,
+        [
+            testSigner1PK,
+        ],
+        2
+    );
+    expect(initialized.methods.submitTransferFees("0x" + vm).send({
+      value: 0,
+      from: accounts[0],
+      gasLimit: 1000000
+  })).to.be.reverted;
+
+})
+
+const signAndEncodePayloadContractFees = async (
+  action: any,
+  chain: any,
+  amount: any,
+  recipient: any
+) => {
+  const body = [
+    web3.eth.abi.encodeParameter("uint8", action).substring(2 + (64 - 2)),
+    web3.eth.abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)),
+    web3.eth.abi.encodeParameter("uint256", amount).substring(2),
+    web3.eth.abi.encodeParameter("address", recipient).substring(2),
+  ].join("");
+
+  return body;
+};
 
   const signAndEncodePayloadContract = async (
     action: any,
@@ -533,4 +734,5 @@ describe("Core Testing", function () {
     }
     return value;
   }
+
 });
