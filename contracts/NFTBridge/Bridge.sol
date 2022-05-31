@@ -17,7 +17,6 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
     using ERC165Checker for address;
     using BytesLib for bytes;
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
     bytes4 private constant _INTERFACE_ERC721_METADATA = 0x5b5e139f;
 
     mapping(bytes32 => address) public _resourceIDToTokenContractAddress;
@@ -43,7 +42,6 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
         _setRoleAdmin(ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
-        _setRoleAdmin(RELAYER_ROLE, DEFAULT_ADMIN_ROLE);
         setCore( _core);
     }
 
