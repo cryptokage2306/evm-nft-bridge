@@ -32,17 +32,17 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  * @type import('hardhat/config').HardhatUserConfig
 //  */
 module.exports = {
-  defaultNetwork: "testnet",
+  // defaultNetwork: "testnet",
   networks: {
     hardhat: {
     },
-    testnet: {
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
-      chainId: 97,
-      gas: 2100000,
-      gasPrice: 20000000000,
-      accounts: [process.env.PRIVATE_KEY]
-    },
+    // testnet: {
+    //   url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+    //   chainId: 97,
+    //   gas: 2100000,
+    //   gasPrice: 20000000000,
+    //   accounts: [process.env.PRIVATE_KEY]
+    // },
   },
   solidity: {
   version: "0.8.4",

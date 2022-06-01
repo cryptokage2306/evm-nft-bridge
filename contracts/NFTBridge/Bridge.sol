@@ -168,6 +168,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
         require(!isTransferCompleted(vm.hash), "transfer already completed");
         setTransferCompleted(vm.hash);
+        require(verifyBridgeVM(vm), "invalid emitter");
 
         bytes32 resourceID = transfer.resourceID;
         uint256 tokenID = transfer.tokenID;
@@ -196,7 +197,6 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
             return true;
         }
-
         return false;
     }
 

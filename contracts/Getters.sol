@@ -9,11 +9,6 @@ contract Getters is State {
         return _state.guardianSets;
     }
 
-
-    function getGuardianSetExpiry() public view returns (uint32) {
-        return _state.guardianSetExpiry;
-    }
-
     function governanceActionIsConsumed(bytes32 hash) public view returns (bool) {
         return _state.consumedGovernanceActions[hash];
     }

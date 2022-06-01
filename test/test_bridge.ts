@@ -113,7 +113,7 @@ describe("Bridge", function () {
     const BridgeContract1 = await Bridge.deploy(currentImplAddress, wh);
     BridgeContract = await BridgeContract1.deployed();
     const TestERC721 = await ethers.getContractFactory("TestERC721");
-    const testERC721 = await TestERC721.deploy();
+    const testERC721 = await TestERC721.deploy("name","testID");
     TestContract = await testERC721.deployed();
   });
 
@@ -169,32 +169,39 @@ describe("Bridge", function () {
     );
   });
 
-  it("Should assign relayer role", async function () {
-    const [deployer] = await ethers.getSigners();
-    const relayer = await BridgeContract.RELAYER_ROLE();
-    TruffleAssert.passes(
-      await BridgeContract.grantRole(relayer, deployer.address)
-    );
-    assert.isTrue(await BridgeContract.hasRole(relayer, deployer.address));
-  });
 
   it("Tests for Deposit ", async function () {
     const [owner] = await ethers.getSigners();
-    const relayer = await BridgeContract.RELAYER_ROLE();
-    await BridgeContract.grantRole(relayer, owner.address);
     await BridgeContract.setResourceIdForToken(
       resourceID,
       TestContract.address,
       true,
       false
     );
-    await TestContract.mint(owner.address, 1);
+    await TestContract.mint(owner.address, 1,"");
 
     expect(await TestContract.ownerOf(1)).to.equal(owner.address);
     await TestContract.setApprovalForAll(BridgeContract.address, true);
     const depositData = createERCDepositData(1, 20, owner.address);
-    const bcv = await BridgeContract.deposit(123, resourceID, depositData);
+    await BridgeContract.deposit(123, resourceID, depositData);
     expect(await TestContract.ownerOf(1)).to.equal(BridgeContract.address);
+  });
+
+  it("Tests for Deposit burnable ", async function () {
+    const [owner] = await ethers.getSigners();
+    await BridgeContract.setResourceIdForToken(
+      resourceID,
+      TestContract.address,
+      true,
+      true
+    );
+    await TestContract.mint(owner.address, 1,"");
+
+    expect(await TestContract.ownerOf(1)).to.equal(owner.address);
+    await TestContract.setApprovalForAll(BridgeContract.address, true);
+    const depositData = createERCDepositData(1, 20, owner.address);
+    await BridgeContract.deposit(123, resourceID, depositData);
+
   });
 
   it("should accept smart contract upgrades", async function () {
@@ -220,17 +227,96 @@ describe("Bridge", function () {
     TruffleAssert.passes(await BridgeContract.upgrade("0x" + vm));
   });
 
-  it("Tests for Execute ", async function () {
+  it("should not accept smart contract upgrades with wrong governance chain", async function () {
+    const { currentImplAddress } = await deployMinterBurner();
+
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterAddress = testGovernanceContract;
+
+    let data = await signAndEncodePayloadContract(2, 0, currentImplAddress);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      1,
+      emitterAddress,
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+
+    await assertIsRejected(
+      BridgeContract.upgrade("0x" + vm),
+      /wrong governance chain/,
+      "wrong governance chain"
+    );
+  });
+
+  it("should not accept smart contract upgrades with wrong governance contract", async function () {
+    const { currentImplAddress } = await deployMinterBurner();
+
+    const timestamp = 1000;
+    const nonce = 1001;
+
+    let data = await signAndEncodePayloadContract(2, 0, currentImplAddress);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      0,
+      "0x0000000000000000000000000000000000000000000000000000000000000004",
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+
+    await assertIsRejected(
+      BridgeContract.upgrade("0x" + vm),
+      /wrong governance contract/,
+      "wrong governance contract"
+    );
+  });
+
+  it("should not accept smart contract upgrades for same VM", async function () {
+    const { currentImplAddress } = await deployMinterBurner();
+
+    const timestamp = 1000;
+    const nonce = 1001;
+    const emitterAddress = testGovernanceContract;
+
+    let data = await signAndEncodePayloadContract(2, 0, currentImplAddress);
+
+    const vm = await signAndEncodeVM(
+      timestamp,
+      nonce,
+      0,
+      emitterAddress,
+      0,
+      "0x" + data,
+      [testSigner1PK],
+      2
+    );
+
+    TruffleAssert.passes(await BridgeContract.upgrade("0x" + vm));
+    await assertIsRejected(
+      BridgeContract.upgrade("0x" + vm),
+      /governance action already consumed/,
+      "governance action already consumed"
+    );
+  });
+
+  it("Tests for Execute", async function () {
     const [owner] = await ethers.getSigners();
-    const relayer = await BridgeContract.RELAYER_ROLE();
-    await BridgeContract.grantRole(relayer, owner.address);
     await BridgeContract.setResourceIdForToken(
       resourceID,
       TestContract.address,
       true,
       false
     );
-    await TestContract.mint(owner.address, 1);
+    await TestContract.mint(owner.address, 1,"");
 
     expect(await TestContract.ownerOf(1)).to.equal(owner.address);
     await TestContract.setApprovalForAll(BridgeContract.address, true);
@@ -263,6 +349,53 @@ describe("Bridge", function () {
       cl
     );
 
+    await BridgeContract.executeProposal("0x" + encodedVM);
+    expect(await TestContract.ownerOf(1)).to.equal(owner.address);
+  });
+
+  it("Tests for Execute burnable", async function () {
+    const [owner] = await ethers.getSigners();
+    await BridgeContract.setResourceIdForToken(
+      resourceID,
+      TestContract.address,
+      true,
+      true
+    );
+    await TestContract.mint(owner.address, 1,"");
+
+    expect(await TestContract.ownerOf(1)).to.equal(owner.address);
+    await TestContract.setApprovalForAll(BridgeContract.address, true);
+    const depositData = createERCDepositData(1, 20, owner.address);
+    await BridgeContract.deposit(123, resourceID, depositData);
+
+    let core_Address = await BridgeContract.core();
+
+    const core = new web3.eth.Contract(CoreImplementationFullABI, core_Address);
+    const log = (
+      await core.getPastEvents("LogMessagePublished", {
+        fromBlock: "latest",
+      })
+    )[0].returnValues;
+
+    let sequence = log.sequence;
+    let nonce = log.nonce;
+    let payload = log.payload;
+    let cl = log.consistencyLevel;
+
+    let encodedVM = await signAndEncodeVM(
+      0,
+      nonce,
+      121,
+      "0x0000000000000000000000000000000000000000",
+      sequence,
+      payload,
+      [testSigner1PK],
+      cl
+    );
+
+    let minter = await TestContract.MINTER_ROLE()
+
+    await TestContract.grantRole(minter,BridgeContract.address)
     await BridgeContract.executeProposal("0x" + encodedVM);
     expect(await TestContract.ownerOf(1)).to.equal(owner.address);
   });
