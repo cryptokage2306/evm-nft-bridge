@@ -15,28 +15,43 @@ contract GovernanceStructs {
     }
 
     struct ContractUpgrade {
+        // governance action: 1
         uint8 action;
+
+        // governance chain
         uint16 chain;
 
+        // address of new contract
         address newContract;
     }
 
     struct GuardianSetUpgrade {
+        // governance action: 2
         uint8 action;
+
+        // governance chain
         uint16 chain;
 
+        // New Guardian set
         Structs.GuardianSet newGuardianSet;
     }
 
     struct SetMessageFee {
+        // governance action: 3
         uint8 action;
+
+        // governance chain
         uint16 chain;
 
+        // new message fee
         uint256 messageFee;
     }
 
     struct TransferFees {
+        // governance action: 4
         uint8 action;
+
+        // governance chain
         uint16 chain;
 
         uint256 amount;

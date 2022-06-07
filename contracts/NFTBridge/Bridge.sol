@@ -25,6 +25,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
     mapping(address => bool) private _burnList;
     address public implContract;
 
+
     event Deposit(
         uint8 destinationDomainID,
         bytes32 resourceID,
@@ -54,6 +55,12 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         return this.onERC721Received.selector;
     }
 
+    /**
+        @notice Used to initiate the transfer.
+        @param destinationDomainID Destination Chain ID .
+        @param resourceID Unique resource ID created for Token.
+        @param data Data created by hashing tokenAmountOrID,len(recipientAddress) and recipientAddress together.
+     */
     function deposit(
         uint8 destinationDomainID,
         bytes32 resourceID,
@@ -86,22 +93,6 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
                 uri          : metaData,
                 user         : msg.sender
             }), msg.value, nonces[destinationDomainID]); 
-    }
-
-    function upgrade(bytes memory encodedVM) public {
-        (ICore.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
-        require(valid, reason);
-        address currentImplementation = implContract;
-
-        setGovernanceActionConsumed(vm.hash);
-
-        NFTBridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
-
-        require(implementation.chainId == chainId(), "wrong chain id");
-
-        implContract = address(uint160(uint256(implementation.newContract)));
-        emit ContractUpgraded(currentImplementation, implContract);
-
     }
 
     function logTransfer(NFTBridgeStructs.Transfer memory transfer, uint256 callValue, uint64 nonce) internal returns (uint64 sequence) {
@@ -157,6 +148,25 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         transfer.user = encoded.toAddress(index);
     }
 
+    function upgrade(bytes memory encodedVM) public {
+        (ICore.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        require(valid, reason);
+        address currentImplementation = implContract;
+
+        setGovernanceActionConsumed(vm.hash);
+
+        NFTBridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
+
+        require(implementation.chainId == chainId(), "wrong chain id");
+
+        implContract = address(uint160(uint256(implementation.newContract)));
+        emit ContractUpgraded(currentImplementation, implContract);
+    }
+
+    /**
+        @notice Used to execute the transfer message.
+        @param encodedVm encoded bytes of VM verified and signed by Guardians .
+     */
     function executeProposal(
         bytes memory encodedVm
     ) external {
@@ -166,6 +176,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
 
         NFTBridgeStructs.Transfer memory transfer = parseTransfer(vm.payload);
 
+        // Check if same transfer is already completed
         require(!isTransferCompleted(vm.hash), "transfer already completed");
         setTransferCompleted(vm.hash);
         require(verifyBridgeVM(vm), "invalid emitter");
@@ -193,6 +204,7 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         }
     }
 
+    // Check if Bridge contract is deployed on emitter chain
     function verifyBridgeVM(ICore.VM memory vm) internal view returns (bool){
         if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
             return true;
@@ -219,6 +231,13 @@ contract Bridge is NFTBridgeGovernance, AccessControlEnumerable, IERC721Receiver
         _setResourceIdForToken(_resourceId, nft_contract, false, true);
     }
 
+    /**
+        @notice Used to set resourde ID with given token address.
+        @param _resourceId Unique resource ID created for Token .
+        @param _tokenAddress Address of the token
+        @param overwrite if set to false,contract will check if resource ID is already registered otherwise it won't
+        @param isBurnAddress Set to true if you want token to get burned instead of locked
+     */
     function setResourceIdForToken(
         bytes32 _resourceId,
         address _tokenAddress,

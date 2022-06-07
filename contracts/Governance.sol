@@ -14,6 +14,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event GuardianSetAdded(uint32 indexed index);
 
+    //Governance action Used for submit new contract upgrades
     function submitContractUpgrade(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
@@ -29,6 +30,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         upgradeImplementation(upgrade.newContract);
     }
 
+    //Governance action Used for set message fee for execution
     function submitSetMessageFee(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
@@ -44,6 +46,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         setMessageFee(upgrade.messageFee);
     }
 
+    //Governance action to set new Guardian set
     function submitNewGuardianSet(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
@@ -62,6 +65,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         storeGuardianSet(upgrade.newGuardianSet);
     }
 
+    //Governance action to distribute Transfer fees
     function submitTransferFees(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
@@ -92,6 +96,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
+    // Verify Governance sent within the VM for governance Action
     function verifyGovernanceVM(Structs.VM memory vm) internal view returns (bool, string memory){
         // validate vm
         (bool isValid, string memory reason) = verifyVM(vm);

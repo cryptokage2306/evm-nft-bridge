@@ -1,46 +1,38 @@
-# Advanced Sample Hardhat Project
+# NFT Bridge Project
 
-This project demonstrates an advanced Hardhat use case, integrating other tools commonly used alongside Hardhat in the ecosystem.
-
-The project comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts. It also comes with a variety of other tools, preconfigured to work with the project code.
+This repository contains Core contracts of NFT Bridge.
 
 Try running some of the following tasks:
 
 ```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
+npm install
 npx hardhat test
-npx hardhat node
-npx hardhat help
-REPORT_GAS=true npx hardhat test
-npx hardhat coverage
-npx hardhat run scripts/deploy.ts
-TS_NODE_FILES=true npx ts-node scripts/deploy.ts
-npx eslint '**/*.{js,ts}'
-npx eslint '**/*.{js,ts}' --fix
-npx prettier '**/*.{json,sol,md}' --check
-npx prettier '**/*.{json,sol,md}' --write
-npx solhint 'contracts/**/*.sol'
-npx solhint 'contracts/**/*.sol' --fix
 ```
 
-# Etherscan verification
+# Deployments
 
-To try out Etherscan verification, you first need to deploy a contract to an Ethereum network that's supported by Etherscan, such as Ropsten.
+To start the deployment, set up Hardhat.config.ts as per requirements. Default config is set for BSC testnet. 
+First deploy the token contract on the chain, then deploy MinterBurnerPauser. After that deploy the core contracts, and fetch the address of core contract. Enter the address in deploy_bridge.ts and finally deploy bridge on the chain. 
 
-In this project, copy the .env.example file to a file named .env, and then edit it to fill in the details. Enter your Etherscan API key, your Ropsten node URL (eg from Alchemy), and the private key of the account which will send the deployment transaction. With a valid .env file in place, first deploy your contract:
+''' shell
+hardhat run scripts/deploy_token.ts --network testnet
+hardhat run scripts/deploy_minter.ts --network testnet
+hardhat run scripts/deploy_core.ts --network testnet
+hardhat run scripts/deploy_bridge.ts --network testnet
+'''
 
-```shell
-hardhat run --network ropsten scripts/deploy.ts
-```
+# Bridge Process Overview
 
-Then, copy the deployment address and paste it in to replace `DEPLOYED_CONTRACT_ADDRESS` in this command:
+![](images/Process.png)
 
-```shell
-npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
-```
+1. User starts by running the Deposit function of Bridge Contract. This function takes three parameters: Resouce ID, Destination domain ID and data created by hashing tokenAmountOrID,len(recipientAddress) and recipientAddress together.
 
-# Performance optimizations
+2. After successful run of Deposit function, it will emit a event called "LogMessagePublished", which contains address of the sender, Sequence, Nonce, Payload and Consistency Level. 
 
-For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
+3. Relayer will fetch this LogMessagePublished event and decode the data within. VAA Struct will be created which holds version, timestamp, nonce, emitterChainId, emitterAddress, Sequence, ConsistencyLevel, Payload and array of Signatures.
+
+4. Guardians will gossip within each other via a P2P communication network and validate the VAA by signing it.
+
+5. Opon receiving signatures of more than 2/3 Guardians, one of the guardian will fire "Execute" Function of Bridge Bridge Contract on Chain B with Bytes encoded data of VAA. This action results in minting the token for user in receiver chain with token data provided in payload of VAA.
+
+6. Relayer X and Y can be the same entity. Chain A denotes the sender Chain and Chain B denotes for Receiver Chain.

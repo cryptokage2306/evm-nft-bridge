@@ -3,7 +3,7 @@ import { ethers, upgrades, artifacts, web3 } from "hardhat";
 import { getImplementationAddress } from "@openzeppelin/upgrades-core";
 import { assertIsRejected } from "./helper";
 
-import { Bridge, Implementation, TestERC721 } from "../typechain";
+import { Bridge, Implementation } from "../typechain";
 
 const jsonfile = require("jsonfile");
 const elliptic = require("elliptic");

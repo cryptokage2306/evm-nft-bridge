@@ -9,6 +9,7 @@ import "./Governance.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 contract Setup is Setters, ERC1967Upgrade {
+    // Entry Point of the Bridge, Setup function is used for initial setup of contract
     function setup(
         address implementation,
         address[] memory initialGuardians,

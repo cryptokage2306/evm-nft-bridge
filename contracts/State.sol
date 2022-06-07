@@ -25,7 +25,6 @@ contract Storage {
         // Mapping of guardian_set_index => guardian set
         Structs.GuardianSet guardianSets;
 
-
         // Period for which a guardian set stays active after it has been replaced
         uint32 guardianSetExpiry;
 
@@ -38,6 +37,7 @@ contract Storage {
         // Mapping of initialized implementations
         mapping(address => bool) initializedImplementations;
 
+        // Message fee for Execution
         uint256 messageFee;
     }
 }

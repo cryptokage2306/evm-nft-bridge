@@ -22,9 +22,6 @@ const bridge = await Bridge.deploy(currentImplAddress,"0x9309E15276172eEC81b6b53
 await bridge.deployed();
 
 console.log("Bridge deployed to:", bridge.address);
-
-// 0x494E2a46413B921fe9feb6C6a4dA41490b53D401
-// Bridge deployed to: 0xb022b19237C2CA246547652ea830023c1Fde838A
 }
 
 main().catch((error) => {

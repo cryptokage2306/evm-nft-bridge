@@ -31,6 +31,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
     }
 
+    // Verify if VM is emitted by the Governance
     function verifyGovernanceVM(bytes memory encodedVM) internal view returns (ICore.VM memory parsedVM, bool isValid, string memory invalidReason){
         (ICore.VM memory vm, bool valid, string memory reason) = core().parseAndVerifyVM(encodedVM);
 
@@ -52,6 +53,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         return (vm, true, "");
     }
 
+    // Parse payload of register Chain VM
     function parseRegisterChain(bytes memory encoded) public pure returns(NFTBridgeStructs.RegisterChain memory chain) {
         uint index = 0;
 
@@ -73,6 +75,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         require(encoded.length == index, "invalid RegisterChain: wrong length");
     }
 
+    // Parse payload of upload contract action VM
     function parseUpgrade(bytes memory encoded) public pure returns(NFTBridgeStructs.UpgradeContract memory chain) {
         uint index = 0;
 
